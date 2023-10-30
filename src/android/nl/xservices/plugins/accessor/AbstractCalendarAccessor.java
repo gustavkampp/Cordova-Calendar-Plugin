@@ -223,6 +223,7 @@ public abstract class AbstractCalendarAccessor {
         if (cursor.moveToFirst()) {
             int idCol = cursor.getColumnIndex(this.getKey(KeyIndex.INSTANCES_ID));
             int eventIdCol = cursor.getColumnIndex(this.getKey(KeyIndex.INSTANCES_EVENT_ID));
+            int messageCol = cursor.getColumnIndex(this.getKey(KeyIndex.EVENTS_DESCRIPTION));
             int beginCol = cursor.getColumnIndex(this.getKey(KeyIndex.INSTANCES_BEGIN));
             int endCol = cursor.getColumnIndex(this.getKey(KeyIndex.INSTANCES_END));
             int count = cursor.getCount();
@@ -237,6 +238,7 @@ public abstract class AbstractCalendarAccessor {
                 instances[i].eventId = cursor.getString(eventIdCol);
                 instances[i].startDate = cursor.getString(beginCol);
                 instances[i].endDate = cursor.getString(endCol);
+                instances[i].message = cursor.getString(messageCol);
                 i += 1;
             } while (cursor.moveToNext());
         }
