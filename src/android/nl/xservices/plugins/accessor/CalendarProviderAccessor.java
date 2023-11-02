@@ -105,4 +105,10 @@ public class CalendarProviderAccessor extends AbstractCalendarAccessor {
             firstReminderMinutes, secondReminderMinutes, recurrence, recurrenceInterval, recurrenceWeekstart,
             recurrenceByDay, recurrenceByMonthDay, recurrenceEndTime, recurrenceCount, allday, calendarId, url);
   }
+
+  @Override
+  public String modifyEvent(Uri eventsUri, long eventId, String title, long startTime, long endTime, String description, String location, Long firstReminderMinutes, Long secondReminderMinutes, String recurrence, int recurrenceInterval, String recurrenceWeekstart, String recurrenceByDay, String recurrenceByMonthDay, Long recurrenceEndTime, Long recurrenceCount, String allday, Integer calendarId, String url) {
+    eventsUri = eventsUri == null ? ContentUris.withAppendedId( Uri.parse(CONTENT_PROVIDER + CONTENT_PROVIDER_PATH_EVENTS), eventId) : eventsUri;
+    return super.modifyEvent(eventsUri, eventId, title, startTime, endTime, description, location, firstReminderMinutes, secondReminderMinutes, recurrence, recurrenceInterval, recurrenceWeekstart, recurrenceByDay, recurrenceByMonthDay, recurrenceEndTime, recurrenceCount, allday, calendarId, url);
+  }
 }
