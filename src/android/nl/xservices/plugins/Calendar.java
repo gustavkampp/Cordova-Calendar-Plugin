@@ -45,6 +45,7 @@ public class Calendar extends CordovaPlugin {
   private static final String ACTION_DELETE_EVENT = "deleteEvent";
   private static final String ACTION_DELETE_EVENT_BY_ID = "deleteEventById";
   private static final String ACTION_FIND_EVENT_WITH_OPTIONS = "findEventWithOptions";
+  private static final String MODIFY_EVENT_BY_ID = "modifyEventById";
   private static final String ACTION_LIST_EVENTS_IN_RANGE = "listEventsInRange";
   private static final String ACTION_LIST_CALENDARS = "listCalendars";
   private static final String ACTION_CREATE_CALENDAR = "createCalendar";
@@ -89,6 +90,13 @@ public class Calendar extends CordovaPlugin {
         createEventInteractively(args);
       } else {
         createEvent(args);
+      }
+      return true;
+    } else if (MODIFY_EVENT_BY_ID.equals(action)) {
+      if (hasLimitedSupport) {
+        return false;
+      } else {
+        modifyEventById(args);
       }
       return true;
     } else if (ACTION_CREATE_EVENT_INTERACTIVELY.equals(action)) {
@@ -590,6 +598,58 @@ public class Calendar extends CordovaPlugin {
       });
     } catch (Exception e) {
       Log.e(LOG_TAG, "Error creating event. Invoking error callback.", e);
+      callback.error(e.getMessage());
+    }
+  }
+
+  private void modifyEventById(JSONArray args) {
+    // note that if the dev didn't call requestWritePermission before calling this method and calendarPermissionGranted returns false,
+    // the app will ask permission and this method needs to be invoked again (done for backward compat).
+    if (!calendarPermissionGranted(Manifest.permission.WRITE_CALENDAR, Manifest.permission.READ_CALENDAR)) {
+      requestReadWritePermission(PERMISSION_REQCODE_CREATE_EVENT);
+      return;
+    }
+
+    try {
+      final JSONObject argObject = args.getJSONObject(0);
+      final JSONObject argOptionsObject = argObject.getJSONObject("newOptions");
+
+      cordova.getThreadPool().execute(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            final String updated = getCalendarAccessor().modifyEvent(
+                    null,
+                    argObject.getLong("eventId"),
+                    getPossibleNullString("newTitle", argObject),
+                    argObject.getLong("newStartTime"),
+                    argObject.getLong("newEndTime"),
+                    getPossibleNullString("newNotes", argObject),
+                    getPossibleNullString("newLocation", argObject),
+                    argOptionsObject.optLong("firstReminderMinutes", -1),
+                    argOptionsObject.optLong("secondReminderMinutes", -1),
+                    getPossibleNullString("recurrence", argOptionsObject),
+                    argOptionsObject.optInt("recurrenceInterval", -1),
+                    getPossibleNullString("recurrenceWeekstart", argOptionsObject),
+                    getPossibleNullString("recurrenceByDay", argOptionsObject),
+                    getPossibleNullString("recurrenceByMonthDay", argOptionsObject),
+                    argOptionsObject.optLong("recurrenceEndTime", -1),
+                    argOptionsObject.optLong("recurrenceCount", -1),
+                    getPossibleNullString("allday", argOptionsObject),
+                    argOptionsObject.optInt("calendarId", 1),
+                    getPossibleNullString("url", argOptionsObject));
+            if (updated == null) {
+              callback.success("Update success");
+            } else {
+              callback.error("Fail to update an event");
+            }
+          } catch (JSONException e) {
+            e.printStackTrace();
+          }
+        }
+      });
+    } catch (Exception e) {
+      Log.e(LOG_TAG, "Error updating event. Invoking error callback.", e);
       callback.error(e.getMessage());
     }
   }
