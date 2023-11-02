@@ -666,6 +666,77 @@ public abstract class AbstractCalendarAccessor {
         return createdEventID;
     }
 
+
+    public String modifyEvent(Uri eventsUri, long eventId, String title, long startTime, long endTime, String description,
+                              String location, Long firstReminderMinutes, Long secondReminderMinutes,
+                              String recurrence, int recurrenceInterval, String recurrenceWeekstart,
+                              String recurrenceByDay, String recurrenceByMonthDay, Long recurrenceEndTime, Long recurrenceCount,
+                              String allday,
+                              Integer calendarId, String url) {
+        ContentResolver cr = this.cordova.getActivity().getContentResolver();
+        ContentValues values = new ContentValues();
+        final boolean allDayEvent = "true".equals(allday) && isAllDayEvent(new Date(startTime), new Date(endTime));
+        if (allDayEvent) {
+            //all day events must be in UTC time zone per Android specification, getOffset accounts for daylight savings time
+            values.put(Events.EVENT_TIMEZONE, "UTC");
+            values.put(Events.DTSTART, startTime + TimeZone.getDefault().getOffset(startTime));
+            values.put(Events.DTEND, endTime + TimeZone.getDefault().getOffset(endTime));
+        } else {
+            values.put(Events.EVENT_TIMEZONE, TimeZone.getDefault().getID());
+            values.put(Events.DTSTART, startTime);
+            values.put(Events.DTEND, endTime);
+        }
+        values.put(Events.ALL_DAY, allDayEvent ? 1 : 0);
+        values.put(Events.TITLE, title);
+        // there's no separate url field, so adding it to the notes
+        if (url != null) {
+            if (description == null) {
+                description = url;
+            } else {
+                description += " " + url;
+            }
+        }
+        values.put(Events.DESCRIPTION, description);
+        values.put(Events.HAS_ALARM, firstReminderMinutes > -1 || secondReminderMinutes > -1 ? 1 : 0);
+        values.put(Events.CALENDAR_ID, calendarId);
+        values.put(Events.EVENT_LOCATION, location);
+
+        if (recurrence != null) {
+            String rrule = "FREQ=" + recurrence.toUpperCase() +
+                    ((recurrenceInterval > -1) ? ";INTERVAL=" + recurrenceInterval : "") +
+                    ((recurrenceWeekstart != null) ? ";WKST=" + recurrenceWeekstart : "") +
+                    ((recurrenceByDay != null) ? ";BYDAY=" + recurrenceByDay : "") +
+                    ((recurrenceByMonthDay != null) ? ";BYMONTHDAY=" + recurrenceByMonthDay : "") +
+                    ((recurrenceEndTime > -1) ? ";UNTIL=" + nl.xservices.plugins.Calendar.formatICalDateTime(new Date(recurrenceEndTime)) : "") +
+                    ((recurrenceCount > -1) ? ";COUNT=" + recurrenceCount : "");
+            values.put(Events.RRULE, rrule);
+        }
+
+        try {
+            int rows = cr.update(eventsUri, values, null, null);
+            Log.d(LOG_TAG, "Updated event with ID " + eventId);
+
+            if (firstReminderMinutes > -1) {
+                ContentValues reminderValues = new ContentValues();
+                reminderValues.put("event_id", eventId);
+                reminderValues.put("minutes", firstReminderMinutes);
+                reminderValues.put("method", 1);
+                cr.update(Uri.parse(CONTENT_PROVIDER + CONTENT_PROVIDER_PATH_REMINDERS), reminderValues, "EVENT_ID=" + eventId, null);
+            }
+
+            if (secondReminderMinutes > -1) {
+                ContentValues reminderValues = new ContentValues();
+                reminderValues.put("event_id", eventId);
+                reminderValues.put("minutes", secondReminderMinutes);
+                reminderValues.put("method", 1);
+                cr.update(Uri.parse(CONTENT_PROVIDER + CONTENT_PROVIDER_PATH_REMINDERS), reminderValues, "EVENT_ID="+eventId, null);
+            }
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Creating reminders failed, ignoring since the event was created.", e);
+        }
+        return null;
+    }
+
     @SuppressWarnings("MissingPermission") // already requested in calling method
     public String createCalendar(String calendarName, String calendarColor) {
         try {
